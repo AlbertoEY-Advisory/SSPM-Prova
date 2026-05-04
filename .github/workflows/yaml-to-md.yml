@@ -1,0 +1,152 @@
+name: Convert Policy YAML to Markdown
+
+permissions:
+  contents: write
+
+on:
+  push:
+    paths:
+      - "vendors/**/*.yaml"
+      - "vendors/**/*.yml"
+      - "use-cases/**/*.yaml"
+      - "use-cases/**/*.yml"
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Find added or modified YAML files in vendors/ and use-cases/
+        id: changed
+        run: |
+          BEFORE="${{ github.event.before }}"
+          AFTER="${{ github.sha }}"
+
+          echo "🔎 Checking diff between $BEFORE and $AFTER"
+
+          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            echo "📦 First push: listing all YAML files under vendors/ and use-cases/"
+            CHANGED=$(git ls-files 'vendors/**/*.yml' 'vendors/**/*.yaml' 'use-cases/**/*.yml' 'use-cases/**/*.yaml' || true)
+          else
+            CHANGED=$(git diff --name-status "$BEFORE" "$AFTER" -- \
+              'vendors/**/*.yml' 'vendors/**/*.yaml' \
+              'use-cases/**/*.yml' 'use-cases/**/*.yaml' || true)
+          fi
+
+          FILES_TO_CONVERT=""
+
+          if [ -n "$CHANGED" ]; then
+            echo "📄 Raw diff / ls result:"
+            echo "$CHANGED"
+          fi
+
+          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            if [ -z "$CHANGED" ]; then
+              echo "⚠ No YAML files found."
+              echo "has-files=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+            FILES_TO_CONVERT="$CHANGED"
+          else
+            while read -r status file; do
+              [ -z "$file" ] && continue
+              if [ "$status" = "A" ] || [ "$status" = "M" ]; then
+                FILES_TO_CONVERT+="$file"$'\n'
+              fi
+            done <<< "$CHANGED"
+          fi
+
+          if [ -z "$FILES_TO_CONVERT" ]; then
+            echo "⚠ No YAML files added or modified."
+            echo "has-files=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "✅ YAML files to convert:"
+          echo "$FILES_TO_CONVERT"
+
+          echo "has-files=true" >> $GITHUB_OUTPUT
+          {
+            echo "files<<EOF"
+            echo "$FILES_TO_CONVERT"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+      - name: Setup Node.js
+        if: steps.changed.outputs.has-files == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install required dependencies
+        if: steps.changed.outputs.has-files == 'true'
+        run: |
+          npm init -y --silent
+          npm install js-yaml@4.1.0 --silent
+
+      - name: Convert YAML to Markdown
+        if: steps.changed.outputs.has-files == 'true'
+        id: convert
+        run: |
+          readarray -t FILES <<< "${{ steps.changed.outputs.files }}"
+
+          OUT_FILES=""
+
+          for INPUT in "${FILES[@]}"; do
+            [ -z "$INPUT" ] && continue
+
+            # Keep the full original folder structure under docs/
+            OUTPUT="docs/${INPUT%.*}.md"
+
+            # Ensure folder exists
+            mkdir -p "$(dirname "$OUTPUT")"
+
+            echo "➡ Converting: $INPUT → $OUTPUT"
+            node tools/converters/MD-converter.js "$INPUT" "$OUTPUT"
+
+            OUT_FILES+="$OUTPUT"$'\n'
+          done
+
+          echo "📁 Generated Markdown files:"
+          echo "$OUT_FILES"
+
+          {
+            echo "outputs<<EOF"
+            echo "$OUT_FILES"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+      - name: Commit converted Markdown
+        if: steps.changed.outputs.has-files == 'true'
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+
+          readarray -t OUTS <<< "${{ steps.convert.outputs.outputs }}"
+
+          FILTERED=()
+          for f in "${OUTS[@]}"; do
+            if [ -n "$f" ]; then
+              FILTERED+=("$f")
+            fi
+          done
+
+          if [ "${#FILTERED[@]}" -eq 0 ]; then
+            echo "⚠ No valid Markdown files to add."
+            exit 0
+          fi
+
+          echo "🔧 Adding the following files to the commit:"
+          printf ' - %s\n' "${FILTERED[@]}"
+
+          git add "${FILTERED[@]}"
+
+          git status
+
+          git commit -m "Converted YAML → MD (vendors & use-cases)" || echo "No changes to commit"
+          git push || echo "⚠ git push failed (protected branch or other issue)."
