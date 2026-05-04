@@ -1,0 +1,222 @@
+name: Policy YAML Pipeline
+
+permissions:
+  contents: write
+
+on:
+  push:
+    paths:
+      - "vendors/**/*.yaml"
+      - "vendors/**/*.yml"
+      - "use-cases/**/*.yaml"
+      - "use-cases/**/*.yml"
+      - "use-cases/*.yaml"
+      - "use-cases/*.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    outputs:
+      files: ${{ steps.changed.outputs.files }}
+      deleted: ${{ steps.changed.outputs.deleted }}
+      has-files: ${{ steps.changed.outputs.has-files }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect YAML changes
+        id: changed
+        run: |
+          BEFORE="${{ github.event.before }}"
+          AFTER="${{ github.sha }}"
+
+          ADDED_MODIFIED=""
+          DELETED=""
+
+          echo "🔎 Comparing $BEFORE -> $AFTER for YAML files"
+
+          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            echo "📦 First push on this branch. Listing all YAML files."
+            ADDED_MODIFIED=$(git ls-files 'vendors/**/*.yml' 'vendors/**/*.yaml' 'use-cases/**/*.yml' 'use-cases/**/*.yaml' 'use-cases/*.yml' 'use-cases/*.yaml' || true)
+          else
+            DIFF=$(git diff --name-status "$BEFORE" "$AFTER" -- \
+              'vendors/**/*.yml' 'vendors/**/*.yaml' \
+              'use-cases/**/*.yml' 'use-cases/**/*.yaml' 'use-cases/*.yml' 'use-cases/*.yaml' || true)
+
+            if [ -n "$DIFF" ]; then
+              echo "📄 Filtered YAML diff:"
+              echo "$DIFF"
+            fi
+
+            while read -r status file; do
+              [ -z "$file" ] && continue
+              case "$status" in
+                A|M)
+                  ADDED_MODIFIED+="$file"$'\n'
+                  ;;
+                D)
+                  DELETED+="$file"$'\n'
+                  ;;
+              esac
+            done <<< "$DIFF"
+          fi
+
+          if [ -z "$ADDED_MODIFIED" ]; then
+            echo "⚠ No YAML files added or modified."
+            echo "has-files=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "✅ YAML files to validate:"
+            echo "$ADDED_MODIFIED"
+            echo "has-files=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          {
+            echo "files<<EOF"
+            echo "$ADDED_MODIFIED"
+            echo "EOF"
+            echo "deleted<<EOF"
+            echo "$DELETED"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Setup Node.js
+        if: steps.changed.outputs.has-files == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        if: steps.changed.outputs.has-files == 'true'
+        run: |
+          npm init -y --silent
+          npm install js-yaml@4.1.0 --silent
+
+      - name: Validate YAML files against schema
+        if: steps.changed.outputs.has-files == 'true'
+        run: |
+          readarray -t FILES <<< "${{ steps.changed.outputs.files }}"
+
+          for f in "${FILES[@]}"; do
+            [ -z "$f" ] && continue
+            echo "🔎 Validating $f"
+            node tools/validators/schema-validator.js "$f"
+          done
+
+  convert:
+    needs: validate
+    runs-on: ubuntu-latest
+    if: needs.validate.outputs.has-files == 'true' && needs.validate.result == 'success'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: |
+          npm init -y --silent
+          npm install js-yaml@4.1.0 --silent
+
+      - name: Convert YAML to Markdown
+        id: convert
+        run: |
+          readarray -t FILES <<< "${{ needs.validate.outputs.files }}"
+
+          OUT_FILES=""
+
+          for INPUT in "${FILES[@]}"; do
+            [ -z "$INPUT" ] && continue
+
+            OUTPUT="docs/${INPUT%.*}.md"
+            mkdir -p "$(dirname "$OUTPUT")"
+
+            echo "➡ Converting: $INPUT → $OUTPUT"
+            node tools/converters/MD-converter.js "$INPUT" "$OUTPUT"
+
+            OUT_FILES+="$OUTPUT"$'\n'
+          done
+
+          echo "📁 Generated Markdown files:"
+          echo "$OUT_FILES"
+
+          {
+            echo "outputs<<EOF"
+            echo "$OUT_FILES"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Commit converted Markdown
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+
+          readarray -t OUTS <<< "${{ steps.convert.outputs.outputs }}"
+
+          FILTERED=()
+          for f in "${OUTS[@]}"; do
+            if [ -n "$f" ]; then
+              FILTERED+=("$f")
+            fi
+          done
+
+          if [ "${#FILTERED[@]}" -eq 0 ]; then
+            echo "⚠ No valid Markdown files to add."
+            exit 0
+          fi
+
+          echo "🔧 Adding the following files to the commit:"
+          printf ' - %s\n' "${FILTERED[@]}"
+
+          git add "${FILTERED[@]}"
+          git status
+
+          git commit -m "Converted YAML → MD (vendors & use-cases)" || exit 0
+          git push || echo "⚠ git push failed (protected branch or other issue)."
+
+  cleanup:
+    needs: validate
+    runs-on: ubuntu-latest
+    if: needs.validate.outputs.deleted != ''
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Remove Markdown for deleted YAML files
+        run: |
+          readarray -t DELETED <<< "${{ needs.validate.outputs.deleted }}"
+
+          TO_REMOVE=()
+
+          for f in "${DELETED[@]}"; do
+            [ -z "$f" ] && continue
+            MD_PATH="docs/${f%.*}.md"
+            if [ -f "$MD_PATH" ]; then
+              echo "🗑 Removing $MD_PATH"
+              TO_REMOVE+=("$MD_PATH")
+            fi
+          done
+
+          if [ "${#TO_REMOVE[@]}" -eq 0 ]; then
+            echo "No Markdown files to remove."
+            exit 0
+          fi
+
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+
+          git rm "${TO_REMOVE[@]}"
+          git commit -m "Remove Markdown for deleted YAML policies"
+          git push || echo "⚠ git push failed (protected branch or other issue)."
