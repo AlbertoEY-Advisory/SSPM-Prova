@@ -1,0 +1,16 @@
+useCase:
+  useCaseId: "TODO: Unique identifier for the use case"
+  
+  title: "TODO: Short name of the use case"
+  
+  description: |
+    TODO: Detailed explanation of the use case and its purpose
+
+  impactArea: "TODO: Product area impacted (e.g., CASB Inline, SSPM)"
+
+  purpose: "TODO: What business or security objective this use case supports"
+
+  notes: |
+    TODO: Guidance for teams when implementing this use case
+  
+  owner: "TODO: Team or owner of the use case"

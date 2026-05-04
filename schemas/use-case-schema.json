@@ -1,0 +1,76 @@
+{
+  "kind": "useCase",
+  "rootKey": "useCase",
+
+  "requiredPaths": [
+    "useCase.useCaseId",
+    "useCase.title",
+    "useCase.description",
+    "useCase.impactArea",
+    "useCase.purpose",
+    "useCase.owner"
+  ],
+
+  "sections": [
+    {
+      "type": "heading",
+      "level": 1,
+      "text": "Use Case: {{useCase.title}}"
+    },
+
+    {
+      "type": "kv-list",
+      "title": "Metadata",
+      "items": [
+        { "label": "Use Case ID", "path": "useCase.useCaseId" },
+        { "label": "Impact Area", "path": "useCase.impactArea" },
+        { "label": "Owner", "path": "useCase.owner" }
+      ]
+    },
+
+    {
+      "type": "separator"
+    },
+
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Description"
+    },
+    {
+      "type": "field",
+      "path": "useCase.description",
+      "fallback": "_No description provided_"
+    },
+
+    {
+      "type": "separator"
+    },
+
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Purpose"
+    },
+    {
+      "type": "field",
+      "path": "useCase.purpose",
+      "fallback": "_No purpose provided_"
+    },
+
+    {
+      "type": "separator"
+    },
+
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Notes"
+    },
+    {
+      "type": "field",
+      "path": "useCase.notes",
+      "fallback": "_No notes provided_"
+    }
+  ]
+}

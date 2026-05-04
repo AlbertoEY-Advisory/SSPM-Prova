@@ -1,0 +1,152 @@
+{
+  "kind": "policy",
+  "rootKey": "policy",
+
+  "requiredPaths": [
+    "policy.name",
+    "policy.policy_intent.type",
+    "policy.description.purpose",
+    "policy.description.context",
+    "policy.description.owner",
+    "policy.description.source",
+    "policy.posture_logic.check_schedule",
+    "policy.posture_logic.target_configuration",
+    "policy.posture_logic.expected_value",
+    "policy.severity.level",
+    "policy.severity.impact",
+    "policy.remediation_action.type",
+    "policy.remediation_action.description"
+  ],
+
+  "sections": [
+    {
+      "type": "heading",
+      "level": 1,
+      "text": "Posture Policy Documentation"
+    },
+
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Policy Name"
+    },
+    {
+      "type": "field",
+      "path": "policy.name",
+      "fallback": ""
+    },
+
+    { "type": "separator" },
+
+    {
+      "type": "kv-list",
+      "title": "Policy Intent",
+      "items": [
+        {
+          "label": "Type",
+          "path": "policy.policy_intent.type"
+        }
+      ]
+    },
+
+    { "type": "separator" },
+
+    {
+      "type": "kv-list",
+      "title": "Description",
+      "items": [
+        { "label": "Purpose", "path": "policy.description.purpose" },
+        { "label": "Context", "path": "policy.description.context" },
+        { "label": "Owner", "path": "policy.description.owner" },
+        { "label": "Source", "path": "policy.description.source" }
+      ]
+    },
+
+    { "type": "separator" },
+
+    {
+      "type": "kv-list",
+      "title": "Posture Logic",
+      "items": [
+        { "label": "Check Schedule", "path": "policy.posture_logic.check_schedule" },
+        { "label": "Target Configuration", "path": "policy.posture_logic.target_configuration" },
+        { "label": "Expected Value", "path": "policy.posture_logic.expected_value" },
+        { "label": "Allowed Deviations", "path": "policy.posture_logic.allowed_deviations" }
+      ]
+    },
+
+    { "type": "separator" },
+
+    {
+      "type": "kv-list",
+      "title": "Severity",
+      "items": [
+        { "label": "Level", "path": "policy.severity.level" },
+        { "label": "Impact", "path": "policy.severity.impact" }
+      ]
+    },
+
+    { "type": "separator" },
+
+    {
+      "type": "kv-list",
+      "title": "Remediation Action",
+      "items": [
+        { "label": "Type", "path": "policy.remediation_action.type" },
+        { "label": "Description", "path": "policy.remediation_action.description" }
+      ]
+    },
+
+    { "type": "separator" },
+
+    {
+      "type": "list",
+      "title": "Evidence Captured",
+      "path": "policy.evidence_captured",
+      "emptyText": "_None_"
+    },
+
+    { "type": "separator" },
+
+    {
+      "type": "kv-list",
+      "title": "Audit & Monitoring",
+      "items": [
+        { "label": "Findings", "path": "policy.audit_and_monitoring.findings" },
+        { "label": "Reports", "path": "policy.audit_and_monitoring.reports" },
+        { "label": "Review", "path": "policy.audit_and_monitoring.review" }
+      ]
+    },
+
+    { "type": "separator" },
+
+    {
+      "type": "list",
+      "title": "Related Policies",
+      "path": "policy.related_policies",
+      "emptyText": "_None_"
+    },
+
+    {
+      "type": "codeblock",
+      "title": "Last Platform Snapshot",
+      "language": "json",
+      "path": "policy.last_platform_snapshot",
+      "emptyText": ""
+    },
+
+    {
+      "type": "list",
+      "title": "Use Cases / Links",
+      "path": "policy.usecases_link",
+      "emptyText": "_None_"
+    },
+
+    {
+      "type": "list",
+      "title": "Notes",
+      "path": "policy.notes",
+      "emptyText": "_None_"
+    }
+  ]
+}

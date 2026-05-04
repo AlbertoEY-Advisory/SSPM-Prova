@@ -1,0 +1,58 @@
+policy:
+  name: "<CLASS>-<PLATFORM>-<TYPE>-<SCOPE>-<TAGS>-<TITLE>"
+
+  optional_tags:
+    tagName: "TODO: tagValue"
+
+  policy_intent:
+    type: "BASELINE_DIFF | CUSTOM_RULE"
+
+  description:
+    purpose: "TODO: Brief explanation of the rule intent."
+    context: "TODO: Why this rule exists (risk, configuration hardening, compliance, etc.)."
+    owner: "TODO: Department or person responsible."
+    source: "TODO: Origin of requirement (internal standard, CIS benchmark, audit finding)."
+
+  posture_logic:
+    check_schedule: "TODO: How often the posture rule runs (cron/scheduled/API-triggered)."
+    target_configuration: "TODO: Setting, object, or control being evaluated."
+    expected_value: "TODO: Secure value or configuration."
+    allowed_deviations: "TODO: Documented exceptions (if any)."
+ 
+  severity:
+    level: "Low | Medium | High | Critical"
+    impact: "Security | Compliance | Business"
+  
+  remediation_action:
+    type: "AUTO | SEMI_AUTO | MANUAL | NONE"
+    description: "TODO: How the issue is remediated when detected."
+
+  evidence_captured:
+    - "TODO: Screenshots"
+    - "TODO: API responses"
+    - "TODO: Configuration dumps"
+
+  audit_and_monitoring:
+    findings: "TODO: What is captured as a posture finding."
+    reports: "TODO: Reporting cadence."
+    review: "TODO: Responsible review team."
+
+  related_policies:
+    - name: "<TODO: POLICY_NAME>"
+      description: "TODO: Short description."
+
+  last_platform_snapshot: |
+    {
+    "ruleId": "xxxxxxx",
+    "settingPath": "TODO"
+    "observedValue": "TODO",
+    "expectedValue": "TODO",
+    "lastEvaluated": "TODO timestamp"
+    }
+
+  notes:
+  - "Versioning is managed in Git history."
+  - "Deprecation is managed via tags (e.g., STATDeprecated)."
+
+  usecases_link:
+  - "TODO: link a specific use case"
